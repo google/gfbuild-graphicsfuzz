@@ -72,13 +72,13 @@ git checkout "${COMMIT_ID}"
 export MAVEN_OPTS="-Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
 export PYTHON_GF="python3"
 
-mvn -B -Dmaven.test.skip=true -am -pl :graphicsfuzz package
+mvn -B -P lite -Dmaven.test.skip=true -am -pl :graphicsfuzz package
 "${PYTHON}" build/travis/licenses.py
 cp OPEN_SOURCE_LICENSES.TXT graphicsfuzz/src/main/scripts/OPEN_SOURCE_LICENSES.TXT
 echo "${BUILD_REPO_SHA}">"graphicsfuzz/src/main/scripts/build-version"
 cp "${WORK}/COMMIT_ID" "version"
 rm -rf graphicsfuzz/target
-mvn -B -Dmaven.test.skip=true -am -pl :graphicsfuzz package
+mvn -B -P lite -Dmaven.test.skip=true -am -pl :graphicsfuzz package
 cp graphicsfuzz/target/graphicsfuzz.zip "${INSTALL_DIR}.zip"
 ###### END BUILD ######
 
