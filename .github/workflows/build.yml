@@ -23,7 +23,6 @@ on:
 
 jobs:
   build:
-    strategy:
     runs-on: ubuntu-16.04
     env:
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
