@@ -79,7 +79,7 @@ export PYTHON_GF="python3.6"
 
 python3.6 --version || true
 
-java --version
+java -version
 
 set +u
 echo "${JAVA_HOME}"
