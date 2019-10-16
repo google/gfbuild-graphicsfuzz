@@ -21,7 +21,6 @@ set -u
 WORK="$(pwd)"
 
 GH_RELEASE_TOOL_ARCH="linux_amd64"
-BUILD_PLATFORM="Linux_x64"
 PYTHON="python3"
 
 ###### START EDIT ######
@@ -61,7 +60,6 @@ ls
 popd
 
 ###### START EDIT ######
-
 git clone https://github.com/${TARGET_REPO_ORG}/${TARGET_REPO_NAME}.git "${TARGET_REPO_NAME}"
 cd "${TARGET_REPO_NAME}"
 git checkout "${COMMIT_ID}"
@@ -69,97 +67,79 @@ git checkout "${COMMIT_ID}"
 
 ###### BEGIN BUILD ######
 
-# -Djava.net.preferIPv4Stack=true
-#   Probably not needed but can help with the issue where Maven dependency downloading freezes.
 # -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn
 #   Increase log level of the "Download*" messages from Maven so they are hidden.
-MAVEN_OPTS="-Djava.net.preferIPv4Stack=true -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
+export MAVEN_OPTS="-Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
+export PYTHON_GF="python3"
 
-export PYTHON_GF="python3.6"
-
-python3.6 --version || true
-
-java -version
-
-set +u
-echo "${JAVA_HOME}"
-echo "${PATH}"
-
-mvn --version || true
-
+mvn -B -Dmaven.test.skip=true -am -pl :graphicsfuzz package
+"${PYTHON}" build/travis/licenses.py
+cp OPEN_SOURCE_LICENSES.TXT graphicsfuzz/src/main/scripts/OPEN_SOURCE_LICENSES.TXT
+echo "${BUILD_REPO_SHA}">"graphicsfuzz/src/main/scripts/build-version"
+cp "${WORK}/COMMIT_ID" "version"
+rm -rf graphicsfuzz/target
+mvn -B -Dmaven.test.skip=true -am -pl :graphicsfuzz package
+cp graphicsfuzz/target/graphicsfuzz.zip "${INSTALL_DIR}.zip"
 ###### END BUILD ######
 
 ###### START EDIT ######
-#for f in "${INSTALL_DIR}/bin/"*; do
-#  echo "${BUILD_REPO_SHA}">"${f}.build-version"
-#  cp "${WORK}/COMMIT_ID" "${f}.version"
-#done
 ###### END EDIT ######
 
-## Add licenses file.
-#cp "${WORK}/third_party/OPEN_SOURCE_LICENSES.TXT" "${INSTALL_DIR}/"
-#cp "${WORK}/third_party/OPEN_SOURCE_LICENSES.TXT" ./
-#
-## zip file.
-#pushd "${INSTALL_DIR}"
-#zip -r "../${INSTALL_DIR}.zip" ./*
-#popd
-#
-#sha1sum "${INSTALL_DIR}.zip" >"${INSTALL_DIR}.zip.sha1"
-#
-## POM file.
-#sed -e "s/@GROUP@/${GROUP_DOTS}/g" -e "s/@ARTIFACT@/${ARTIFACT}/g" -e "s/@VERSION@/${ARTIFACT_VERSION}/g" "../fake_pom.xml" >"${POM_FILE}"
-#
-#sha1sum "${POM_FILE}" >"${POM_FILE}.sha1"
-#
-#DESCRIPTION="$(echo -e "Automated build for ${TARGET_REPO_NAME} version ${COMMIT_ID}.\n$(git log --graph -n 3 --abbrev-commit --pretty='format:%h - %s <%an>')")"
-#
-## Only release from master branch commits.
-## shellcheck disable=SC2153
-#if test "${GITHUB_REF}" != "refs/heads/master"; then
-#  exit 0
-#fi
-#
-## We do not use the GITHUB_TOKEN provided by GitHub Actions.
-## We cannot set enviroment variables or secrets that start with GITHUB_ in .yml files,
-## but the github-release tool requires GITHUB_TOKEN, so we set it here.
-#export GITHUB_TOKEN="${GH_TOKEN}"
-#
-#github-release \
-#  "${BUILD_REPO_ORG}/${BUILD_REPO_NAME}" \
-#  "${TAG}" \
-#  "${BUILD_REPO_SHA}" \
-#  "${DESCRIPTION}" \
-#  "${INSTALL_DIR}.zip"
-#
-#github-release \
-#  "${BUILD_REPO_ORG}/${BUILD_REPO_NAME}" \
-#  "${TAG}" \
-#  "${BUILD_REPO_SHA}" \
-#  "${DESCRIPTION}" \
-#  "${INSTALL_DIR}.zip.sha1"
-#
-## Don't fail if pom cannot be uploaded, as it might already be there.
-#
-#github-release \
-#  "${BUILD_REPO_ORG}/${BUILD_REPO_NAME}" \
-#  "${TAG}" \
-#  "${BUILD_REPO_SHA}" \
-#  "${DESCRIPTION}" \
-#  "${POM_FILE}" || true
-#
-#github-release \
-#  "${BUILD_REPO_ORG}/${BUILD_REPO_NAME}" \
-#  "${TAG}" \
-#  "${BUILD_REPO_SHA}" \
-#  "${DESCRIPTION}" \
-#  "${POM_FILE}.sha1" || true
-#
-## Don't fail if OPEN_SOURCE_LICENSES.TXT cannot be uploaded, as it might already be there.
-#
-#github-release \
-#  "${BUILD_REPO_ORG}/${BUILD_REPO_NAME}" \
-#  "${TAG}" \
-#  "${BUILD_REPO_SHA}" \
-#  "${DESCRIPTION}" \
-#  "OPEN_SOURCE_LICENSES.TXT" || true
+sha1sum "${INSTALL_DIR}.zip" >"${INSTALL_DIR}.zip.sha1"
+
+# POM file.
+sed -e "s/@GROUP@/${GROUP_DOTS}/g" -e "s/@ARTIFACT@/${ARTIFACT}/g" -e "s/@VERSION@/${ARTIFACT_VERSION}/g" "../fake_pom.xml" >"${POM_FILE}"
+
+sha1sum "${POM_FILE}" >"${POM_FILE}.sha1"
+
+DESCRIPTION="$(echo -e "Automated build for ${TARGET_REPO_NAME} version ${COMMIT_ID}.\n$(git log --graph -n 3 --abbrev-commit --pretty='format:%h - %s <%an>')")"
+
+# Only release from master branch commits.
+# shellcheck disable=SC2153
+if test "${GITHUB_REF}" != "refs/heads/master"; then
+  exit 0
+fi
+
+# We do not use the GITHUB_TOKEN provided by GitHub Actions.
+# We cannot set enviroment variables or secrets that start with GITHUB_ in .yml files,
+# but the github-release tool requires GITHUB_TOKEN, so we set it here.
+export GITHUB_TOKEN="${GH_TOKEN}"
+
+github-release \
+  "${BUILD_REPO_ORG}/${BUILD_REPO_NAME}" \
+  "${TAG}" \
+  "${BUILD_REPO_SHA}" \
+  "${DESCRIPTION}" \
+  "${INSTALL_DIR}.zip"
+
+github-release \
+  "${BUILD_REPO_ORG}/${BUILD_REPO_NAME}" \
+  "${TAG}" \
+  "${BUILD_REPO_SHA}" \
+  "${DESCRIPTION}" \
+  "${INSTALL_DIR}.zip.sha1"
+
+# Don't fail if pom cannot be uploaded, as it might already be there.
+
+github-release \
+  "${BUILD_REPO_ORG}/${BUILD_REPO_NAME}" \
+  "${TAG}" \
+  "${BUILD_REPO_SHA}" \
+  "${DESCRIPTION}" \
+  "${POM_FILE}" || true
+
+github-release \
+  "${BUILD_REPO_ORG}/${BUILD_REPO_NAME}" \
+  "${TAG}" \
+  "${BUILD_REPO_SHA}" \
+  "${DESCRIPTION}" \
+  "${POM_FILE}.sha1" || true
+
+# Don't fail if OPEN_SOURCE_LICENSES.TXT cannot be uploaded, as it might already be there.
+
+github-release \
+  "${BUILD_REPO_ORG}/${BUILD_REPO_NAME}" \
+  "${TAG}" \
+  "${BUILD_REPO_SHA}" \
+  "${DESCRIPTION}" \
+  "OPEN_SOURCE_LICENSES.TXT" || true
