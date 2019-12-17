@@ -58,8 +58,6 @@ cd "${HOME}"
 # Get new commit id.
 git clone https://github.com/${TARGET_REPO_ORG}/${TARGET_REPO_NAME}.git "${TARGET_REPO_NAME}"
 pushd "${TARGET_REPO_NAME}"
-# We want the latest commit of the dev branch.
-git checkout dev
 NEW_COMMIT_ID="$(git rev-parse HEAD)"
 popd
 
